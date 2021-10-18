@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    configmap.reloader.stakater.com/reload: {{ template "logrotate.name" . }}
+  name: {{ template "logrotate.name" . }}
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+{{ include "logrotate.labels.stakater" . | indent 6 }}
+{{ include "logrotate.labels.chart" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "logrotate.labels.stakater" . | indent 8 }}
+{{ include "logrotate.labels.chart" . | indent 8 }}
+      name: {{ template "logrotate.name" . }}
+    spec:
+{{- if .Values.logrotate.rbac.create }}
+{{- if .Values.logrotate.rbac.serviceAccount.name }}
+      serviceAccountName: {{ .Values.logrotate.rbac.serviceAccount.name }}
+{{- else }}
+      serviceAccountName: {{ template "logrotate.name" . }}
+{{- end }}
+{{- end }}
+      containers:
+      - name: {{ template "logrotate.name" . }}
+        image: "{{ .Values.logrotate.image.name }}:{{ .Values.logrotate.image.tag }}"
+{{- if .Values.logrotate.securityContext }}
+        securityContext:
+{{ toYaml .Values.logrotate.securityContext | indent 10 }}
+{{- else }}
+        securityContext:
+          privileged: true
+{{- end }}
+        volumeMounts:
+         - name: volumes
+           mountPath: /var/lib/docker/volumes
+         - name: {{ template "logrotate.name" . }}-config
+           mountPath: /etc/{{ template "logrotate.name" . }}.d/k8s-rotator.conf
+           subPath: k8s-rotator.conf
+        env:
+          - name: CRON_SCHEDULE
+            value: "{{ .Values.logrotate.environment.cronSchedule }}"
+      {{- if .Values.logrotate.tolerations }}
+      tolerations:
+{{ toYaml .Values.logrotate.tolerations | indent 6 -}}
+      {{- end }}
+      volumes:
+         - hostPath:
+             path: /var/lib/docker/volumes
+           name: volumes
+         - configMap:
+            name: {{ template "logrotate.name" . }}
+           name: {{ template "logrotate.name" . }}-config

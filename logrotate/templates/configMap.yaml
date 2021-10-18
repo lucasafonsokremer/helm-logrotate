@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    annotations:
+      fabric8.io/target-platform: kubernetes
+    labels:
+{{ include "logrotate.labels.stakater" . | indent 6 }}
+{{ include "logrotate.labels.chart" . | indent 6 }}
+    name: {{ template "logrotate.name" . }}
+  data:
+    k8s-rotator.conf:  |-
+{{ .Values.logrotate.config.k8sRotatorConf | indent 6 }}
